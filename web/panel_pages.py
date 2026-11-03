@@ -1,8 +1,8 @@
 """两端共用的页面片段（Python 侧）
 
-主本：/root/mybot2/web/panel_pages.py
-副本：/root/astercore/src/astercore/web/panel_pages.py（必须字节一致）
-一致性校验：/root/mybot2/tests/test_dual_end_assets.py
+主本：Linux 版 web/panel_pages.py
+副本：AsterCore 版 src/astercore/web/panel_pages.py（必须字节一致）
+一致性校验：tests/test_dual_end_assets.py
 
 这里只放**两端结构必须完全相同**的页面与标记：
   · 插件配置页框架（控件由插件声明的 schema 驱动，见 config_schema.py / cfg_form.js）

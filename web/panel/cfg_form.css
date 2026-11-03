@@ -1,8 +1,8 @@
 /* ==========================================================================
    插件配置表单：**两端共用的控件样式**
-   主本：/root/mybot2/web/panel/cfg_form.css
-   副本：/root/astercore/src/astercore/web/static/cfg_form.css（必须字节一致）
-   一致性校验：/root/mybot2/tests/test_dual_end_assets.py
+   主本：Linux 版 web/panel/cfg_form.css
+   副本：AsterCore 版 src/astercore/web/static/cfg_form.css（必须字节一致）
+   一致性校验：tests/test_dual_end_assets.py
 
    只使用 --cf-* 适配令牌；两个面板各自在自己的样式里把 --cf-* 指到本项目的设计令牌，
    这样这份文件不用认识任何一端的变量名。每个 var 仍带兜底，漏配也能看。

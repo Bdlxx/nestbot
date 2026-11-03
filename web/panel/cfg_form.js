@@ -1,8 +1,8 @@
 /* ==========================================================================
    插件配置表单：**字段类型 → 控件 的唯一映射表**（两端共用）
-   主本：/root/mybot2/web/panel/cfg_form.js
-   副本：/root/astercore/src/astercore/web/static/cfg_form.js（必须字节一致）
-   一致性校验：/root/mybot2/tests/test_dual_end_assets.py
+   主本：Linux 版 web/panel/cfg_form.js
+   副本：AsterCore 版 src/astercore/web/static/cfg_form.js（必须字节一致）
+   一致性校验：tests/test_dual_end_assets.py
 
    可配置项由插件自己声明（模块级 `__config_schema__`，见 web/config_schema.py），
    所以这份文件里**不出现任何具体插件的名字**：加插件不用改前端。

@@ -1,8 +1,8 @@
 /* ==========================================================================
    面板外壳（**两端共用同一份**：Linux 机器人面板 / Windows 桌面面板）
-   主本：/root/mybot2/web/panel/panel.js
-   副本：/root/astercore/src/astercore/web/static/panel.js（必须字节一致）
-   一致性校验：/root/mybot2/tests/test_dual_end_assets.py
+   主本：Linux 版 web/panel/panel.js
+   副本：AsterCore 版 src/astercore/web/static/panel.js（必须字节一致）
+   一致性校验：tests/test_dual_end_assets.py
 
    分工（这是"双端界面相同"的实现方式）：
      · 本文件 = 布局骨架 + 全部通用交互（导航/页面挂载/动作栏/脏值保护/弹窗/

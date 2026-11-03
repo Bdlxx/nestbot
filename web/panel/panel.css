@@ -1,8 +1,8 @@
 /* ==========================================================================
    面板外壳样式（**两端共用同一份**：Linux 机器人面板 / Windows 桌面面板）
-   主本：/root/mybot2/web/panel/panel.css
-   副本：/root/astercore/src/astercore/web/static/panel.css（必须字节一致）
-   一致性校验：/root/mybot2/tests/test_dual_end_assets.py
+   主本：Linux 版 web/panel/panel.css
+   副本：AsterCore 版 src/astercore/web/static/panel.css（必须字节一致）
+   一致性校验：tests/test_dual_end_assets.py
    内容 = 布局骨架 + 设计系统 v2 + 交互态修正层；令牌名两端一致，所以两端长得一样。
    ========================================================================== */
 /* ---------- 1. 布局与基础组件 ---------- */

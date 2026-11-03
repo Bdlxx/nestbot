@@ -112,7 +112,7 @@
 ## 5. 验证（题目要求的那条命令）
 
 ```bash
-cd /root/mybot2 && python3 -c "
+cd /root/botnest && python3 -c "
 import importlib.util, json, os, re, sys, ast
 sys.path.insert(0, 'web')
 from config_schema import normalize_schema, field_path, flatten_values, has_path, build_payload, validate_and_merge, get_path
