@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # =============================================================================
-# new_instance.sh —— 用脚本新建一个 bot 实例（Linux 端 /root/mybot2）
+# new_instance.sh —— 用脚本新建一个 bot 实例（Linux 端 /root/botnest）
 #
 # 做的事（全部可重复执行，已存在的东西会跳过而不是覆盖）：
-#   1. instances/<QQ>/        实例目录：main.py + utils + plugins + venv + data（从源实例复制）
+#   1. <QQ>/                  实例目录：main.py + utils + plugins + venv + data（从源实例复制）
 #                             · 插件与配置里的实例名（如「依星」）按本实例名改写，保证
 #                               __config_schema__ 的 default 与本实例配置一致
 #                             · 只复制**配置类** json，签到/婚姻/昵称等运行时数据不复制（从零开始）
-#   2. instances/registry/<QQ>.sh   注册文件（面板据此发现实例）
+#   2. 脚本/registry/<QQ>.sh  注册文件（面板据此发现实例）
 #   3. /etc/systemd/system/mybot-bot-<QQ>.service  单元 + enable --now（父进程 PID 1，与会话无关）
 #   4. /root/napcat<N>/       独立 NapCat 目录 + 新容器（bridge，端口映射到 127.0.0.1）
 #   5. nginx 站点（NapCat WebUI 域名 + 面板域名）  + nginx -t + reload
@@ -29,9 +29,9 @@
 # =============================================================================
 set -uo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-INSTANCES_ROOT="$REPO_ROOT/instances"
-REGISTRY_DIR="$INSTANCES_ROOT/registry"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+INSTANCES_ROOT="$REPO_ROOT"
+REGISTRY_DIR="$REPO_ROOT/脚本/registry"
 HELPER_IMAGE="alpine:latest"
 NAPCAT_IMAGE="mlikiowa/napcat-docker:latest"
 
@@ -535,9 +535,9 @@ EOF
     # 页面外壳在 web/index.html；该页里的 panel.css / cfg_form.js 都是相对路径，
     # 在 /panel/ 下会请求 /panel/panel.css —— 正好是 web/panel/ 里的真实文件。
     location = $PP { return 301 $PP/; }
-    location = $PP/ { alias /root/mybot2/web/index.html; }
+    location = $PP/ { alias /root/botnest/web/index.html; }
     location ^~ $PP/ {
-        root /root/mybot2/web;
+        root /root/botnest/web;
         try_files \$uri =404;
         expires 5m;
         add_header Cache-Control "public, max-age=300";
@@ -581,7 +581,7 @@ server {
     ssl_session_cache shared:SSL:50m;
     ssl_protocols TLSv1.2 TLSv1.3;
 
-    root /root/mybot2/web;
+    root /root/botnest/web;
     index index.html;
 
     location ~* ^/panel/.*\.(js|css)\$ {

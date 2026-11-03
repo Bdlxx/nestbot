@@ -15,11 +15,16 @@ PLUGIN_REPO="https://github.com/Bdlxx/NapCat-WordLibBot-Plugins.git"
 # 用户目录下新建目录存储脚本（napbot 命令的稳定指向）
 NAPBOT_HOME="$HOME/napbot"
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
-TEMPLATES_DIR="$BASE_DIR/templates"
+ROOT_DIR="$(cd "$BASE_DIR/.." && pwd)"
+# 仓库根下的 templates/ 与 USAGE.md（脚本被单独拷到 ~/napbot 时回落到同级）
+TEMPLATES_DIR="$ROOT_DIR/templates"
+[ -d "$TEMPLATES_DIR" ] || TEMPLATES_DIR="$BASE_DIR/templates"
+USAGE_SRC="$ROOT_DIR/USAGE.md"
+[ -f "$USAGE_SRC" ] || USAGE_SRC="$BASE_DIR/USAGE.md"
 SCRIPT_PATH="$BASE_DIR/install.sh"
-# 实例统一放在脚本目录下的 instances/ 中，注册文件在 instances/registry/
-INSTANCES_ROOT="$BASE_DIR/instances"
-INSTANCES_DIR="$INSTANCES_ROOT/registry"
+# 实例目录：<根>/<QQ>（脚本在 <根>/脚本/ 下），注册文件在脚本目录的 registry/
+INSTANCES_ROOT="$(cd "$BASE_DIR/.." && pwd)"
+INSTANCES_DIR="$BASE_DIR/registry"
 
 mkdir -p "$INSTANCES_DIR"
 
@@ -30,7 +35,7 @@ if [[ -f "$0" && "$0" != /dev/fd/* && "$(readlink -f "$0")" != "$NAPBOT_HOME/ins
     mkdir -p "$NAPBOT_HOME"
     cp "$0" "$NAPBOT_HOME/install.sh" 2>/dev/null && chmod +x "$NAPBOT_HOME/install.sh"
     # 同步使用教程到用户目录（脚本菜单「查看使用教程」可离线打开）
-    [ -f "$BASE_DIR/USAGE.md" ] && cp "$BASE_DIR/USAGE.md" "$NAPBOT_HOME/USAGE.md" 2>/dev/null
+    [ -f "$USAGE_SRC" ] && cp "$USAGE_SRC" "$NAPBOT_HOME/USAGE.md" 2>/dev/null
 fi
 
 # ───────────────────────── 颜色 ─────────────────────────
@@ -973,8 +978,8 @@ main_menu() {
 # 查看使用教程（USAGE.md）
 show_usage() {
     local usage_file=""
-    if [ -f "$BASE_DIR/USAGE.md" ]; then
-        usage_file="$BASE_DIR/USAGE.md"
+    if [ -f "$USAGE_SRC" ]; then
+        usage_file="$USAGE_SRC"
     elif [ -f "$NAPBOT_HOME/USAGE.md" ]; then
         usage_file="$NAPBOT_HOME/USAGE.md"
     fi

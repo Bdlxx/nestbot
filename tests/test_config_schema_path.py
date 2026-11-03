@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """插件配置 schema：点号路径（path）语义与"空改动保存不改坏配置"的回归测试。
 
-跑法：cd /root/mybot2 && python3 -m unittest tests.test_config_schema_path -v
+跑法：cd /root/botnest && python3 -m unittest tests.test_config_schema_path -v
 """
 import copy
 import json

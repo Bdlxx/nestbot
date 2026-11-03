@@ -110,12 +110,12 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
-# install.sh 的实例注册/目录规范（脚本目录下 instances/）
-# 新布局：<项目根>/instances/<QQ>（项目） + <项目根>/instances/registry/<QQ>.sh（注册）
-# 旧布局（兼容）：/tmp/napbot_instances/<QQ>.sh + /root/mybot_<QQ>
+# 实例注册/目录规范
+# 现布局：<项目根>/<QQ>（实例项目） + <项目根>/脚本/registry/<QQ>.sh（注册）
+# 旧布局（兼容）：<项目根>/instances/<QQ>、/tmp/napbot_instances/<QQ>.sh、/root/mybot_<QQ>
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-INSTANCES_ROOT = os.path.join(_BASE_DIR, 'instances')
-INSTANCES_DIR = os.path.join(INSTANCES_ROOT, 'registry')
+INSTANCES_ROOT = _BASE_DIR
+INSTANCES_DIR = os.path.join(_BASE_DIR, '脚本', 'registry')
 LEGACY_INSTANCES_DIR = "/tmp/napbot_instances"
 INST_PROJECT_PREFIX = "/root/mybot_"
 

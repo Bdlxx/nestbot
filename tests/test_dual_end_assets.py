@@ -13,7 +13,7 @@
 | 表单控件样式 | `web/panel/cfg_form.css` | `src/astercore/web/static/cfg_form.css` |
 
 Windows 端仓库不在本机时自动跳过（公开仓库的其他人跑测试不该因此失败）。
-跑法：cd /root/mybot2 && python3 -m unittest tests.test_dual_end_assets -v
+跑法：cd /root/botnest && python3 -m unittest tests.test_dual_end_assets -v
 """
 import hashlib
 import os

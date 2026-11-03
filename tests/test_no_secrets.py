@@ -9,7 +9,7 @@
 （已跟踪 + 未被 .gitignore 忽略的未跟踪文件）——这些正是"下一次 git add 会带上去"的文件。
 用**形状**匹配；真实凭据不写进本文件（写了就是又泄露一次）。
 
-跑法：cd /root/mybot2 && python3 -m unittest tests.test_no_secrets -v
+跑法：cd /root/botnest && python3 -m unittest tests.test_no_secrets -v
 """
 import re
 import subprocess

@@ -4,7 +4,7 @@
 覆盖：入参规整/校验、读写落盘（config.json 的 MASTER_QQ + wordlib_config.json 的 admins）、
 「校验不过就一个字节都不写」、未装词库插件时跳过管理员、以及页面片段真的带出当前值。
 
-跑法：cd /root/mybot2 && python3 -m unittest tests.test_panel_settings -v
+跑法：cd /root/botnest && python3 -m unittest tests.test_panel_settings -v
 """
 import json
 import os

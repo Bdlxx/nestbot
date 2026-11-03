@@ -4,7 +4,7 @@
 覆盖的都是"不联网也应当成立"的性质：输入解析、wbi 签名、动态/直播数据归一化、
 轮询的状态迁移与基线语义、订阅存储、推送路由与模板渲染、以及**面板 schema 的完整性**。
 
-跑法：cd /root/mybot2 && python3 -m unittest tests.test_haruka -v
+跑法：cd /root/botnest && python3 -m unittest tests.test_haruka -v
 """
 import json
 import os
