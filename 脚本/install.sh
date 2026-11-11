@@ -202,7 +202,14 @@ deploy_new_instance() {
 
     # ─── 安装依赖 ───
     info "安装 Python 依赖..."
-    pip3 install -q websocket-client requests flask 2>/dev/null && ok "Python 依赖就绪" || warn "pip3 install 失败，可稍后手动安装"
+    local req_file="$ROOT_DIR/requirements.txt"
+    if [ -f "$req_file" ]; then
+        pip3 install -q -r "$req_file" 2>/dev/null \
+            && ok "Python 依赖就绪（含内置 NoneBot 运行时）" \
+            || warn "pip3 install -r requirements.txt 失败，可稍后手动安装（老功能不受影响）"
+    else
+        pip3 install -q websocket-client requests flask 2>/dev/null && ok "Python 依赖就绪" || warn "pip3 install 失败，可稍后手动安装"
+    fi
 
     # ─── 部署 NapCat ───
     deploy_napcat_for_instance "$qq" || return 1
@@ -541,6 +548,24 @@ EOF
 }
 EOF
         ok "wordlib_config.json 已初始化"
+    fi
+
+    # 内置 NoneBot 插件目录（阶段 2）：用户把 NoneBot 插件 .py 直接丢进来，
+    # 实例 config.json 里 NESTBOT_ENABLED=true 后启动即加载；默认空目录不报错。
+    mkdir -p "$project_dir/nonebot_plugins"
+    if [ ! -f "$project_dir/nonebot_plugins/README.md" ]; then
+        cat > "$project_dir/nonebot_plugins/README.md" <<-'EOF'
+# NoneBot 插件目录
+
+把单个 `.py` 插件文件或插件包（含 `__init__.py` 的目录）放进本目录即可。
+
+- 以 `_` 开头的文件/目录不会被加载（可用来临时停用：`mv foo.py _foo.py`）
+- 需要在实例 `config.json` 里设置 `"NESTBOT_ENABLED": true` 才会加载
+- 命令前缀由 `NESTBOT_COMMAND_START`（默认 `/`）控制，超级用户默认取 `MASTER_QQ`
+- 插件依赖需自行 `pip install`（本版本不自动装依赖）
+
+排查“插件不触发”：看 `<实例>/runtime.log` 里 `[NoneBot]` / `nonebot` 开头的日志。
+EOF
     fi
 
     INST_BOT_NAME="$bot_name"

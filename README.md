@@ -1,6 +1,11 @@
-# NapCat WordLib Bot
+# NestBot
 
-📦 基于 NapCat 的 QQ 机器人框架 + 一键部署脚本 | [v1.1.0 发布说明](https://github.com/Bdlxx/NapCat-WordLibBot/releases/tag/v1.1.0)
+📦 基于 OneBot v11 的**可扩展 QQ 机器人框架**，预装 WordLib 词库插件 | [v1.1.0 发布说明](https://github.com/Bdlxx/NapCat-WordLibBot/releases/tag/v1.1.0)
+
+> **改名说明（阶段 0）**：对外显示名统一为 **NestBot**，仓库名 `nestbot`。
+> GitHub 仓库地址暂仍为 `Bdlxx/NapCat-WordLibBot`（改名需仓库 Settings 操作，旧链接自动重定向）。
+> **本版不改**代码包名 / import 名（`plugins.*`、`utils.*`）/ 配置目录 —— 下个大版本统一迁移；
+> 想现在就写 NoneBot 插件的，用新增的 `nestbot` 包（与老插件体系并存）。
 
 ```bash
 # 一键部署（Ubuntu/Debian/CentOS）
@@ -30,6 +35,7 @@ bash <(curl -s https://raw.githubusercontent.com/Bdlxx/NapCat-WordLibBot/master/
 - [🚀 快速开始](#-快速开始)
 - [📖 使用教程 (USAGE.md)](USAGE.md)
 - [🔌 支持的协议](#-支持的协议)
+- [🤖 内置 NoneBot 运行时](#-内置-nonebot-运行时阶段-2)
 - [一键安装脚本](#-一键安装脚本-installsh)
 - [Web 管理面板](#-web-管理面板)
 - [插件开发 (SDK)](#-插件开发-sdk)
@@ -68,6 +74,56 @@ bash <(curl -s https://raw.githubusercontent.com/Bdlxx/NapCat-WordLibBot/master/
 
 - 框架只依赖 OneBot v11 的 WebSocket / HTTP 接口，NapCat 之外的 OneBot v11 实现（如 go-cqhttp 等）也可对接
 - 机器人账号登录、二维码、状态等由 NapCat 负责，不在本仓库范围
+
+---
+
+## 🤖 内置 NoneBot 运行时（阶段 2）
+
+**NoneBot 以内置库的方式跑在本框架自己的事件循环里**——不额外起进程，NapCat 也不用多连一条 WS。
+
+```
+NapCat ──WS──► main.py ──► 协议适配器 ──► NestEvent ──► 词库等老插件链
+                                                        └► 内置 NoneBot（none 驱动）
+                                                              └► 统一发送接口 send_message ──► WS
+```
+
+### 开启
+
+在实例 `config.json` 里加：
+
+```json
+{
+  "NESTBOT_ENABLED": true,
+  "NESTBOT_PLUGINS_DIR": "nonebot_plugins",
+  "NESTBOT_COMMAND_START": ["/"],
+  "NESTBOT_SUPERUSERS": ["你的QQ"]
+}
+```
+
+| 配置项 | 默认 | 说明 |
+|---|---|---|
+| `NESTBOT_ENABLED` | `false` | 必须显式为 true 才装配运行时；缺依赖时只打一行警告，老功能照常 |
+| `NESTBOT_PLUGINS_DIR` | `nonebot_plugins` | 相对实例目录；必须是启动目录之内 |
+| `NESTBOT_COMMAND_START` | `["/"]` | NoneBot 命令前缀 |
+| `NESTBOT_SUPERUSERS` | 回落 `MASTER_QQ` | NoneBot 超级用户 |
+| `NESTBOT_API_WHITELIST` | 内置常用查询 API | 走 NapCat HTTP 转接的 API 白名单 |
+
+### 放 NoneBot 插件
+
+把插件 `.py` 丢进 `<实例>/nonebot_plugins/` 即可（以 `_` 开头的会被跳过，可用来临时停用）。
+实例的 `runtime.log` 里搜 `[NoneBot]` 看加载结果和异常。
+
+**命令优先级**：老插件链先跑（字母序、首个返回 `True` 独占事件），没被处理的消息才注入 NoneBot；
+主程序内建指令（`面板登录`、`命令表`、`#状态`）在更前面，NoneBot 插件不会抢到。
+
+### 开发/测试
+
+```bash
+pip3 install -r requirements.txt
+python3 -m unittest tests.test_nestbot_embed -v    # 无需 NapCat，用 RecordingTransport
+```
+
+内置 NoneBot 用 **none 驱动**，不会监听端口；发送一律经 `nestbot.transport.send_message`。
 
 ---
 
@@ -287,6 +343,13 @@ WebUI 自动识别 `commands`（文本）、`settings`（开关/数字）、`mes
 │   ├── http_client.py      # HTTP 客户端封装
 │   ├── plugin_toggle.py    # 分群开关 + 插件元数据（自动扫描插件目录）
 │   └── command_table.py    # 命令表生成
+├── nestbot/                # 新增：核心抽象 + 内置 NoneBot 运行时（阶段 1/2）
+│   ├── events.py           # NestEvent（统一内部事件）
+│   ├── transport.py        # 统一发送接口 send_message
+│   ├── adapters/           # 协议适配器注册表（当前 OneBot v11）
+│   └── runtime.py          # 后台事件循环 + 线程安全注入
+├── requirements.txt        # 依赖（含 nonebot2 / nonebot-adapter-onebot）
+├── nonebot_plugins/        # 实例里的 NoneBot 插件目录（install.sh 自动创建）
 ├── templates/              # NapCat 配置模板
 ├── web/                    # Web 管理面板（Flask, 8080）
 ├── data/                   # 运行数据（gitignored）

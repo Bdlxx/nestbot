@@ -54,6 +54,76 @@ def _is_master(user_id):
         ml = [ml]
     return str(user_id) in [str(m) for m in ml]
 
+
+def _is_admin(user_id):
+    """管理员：实例 config.json 的 ADMIN_QQ（全插件通用）；老实例没配则回退词库 admins"""
+    u = str(user_id)
+    try:
+        al = _get_cfg("ADMIN_QQ", [])
+        if not isinstance(al, list):
+            al = [al]
+        if any(str(x).strip() == u for x in al):
+            return True
+    except Exception:
+        pass
+    try:
+        import json as _json, os as _os
+        wl = _json.load(open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                           "data", "wordlib_config.json"), encoding="utf-8"))
+        return u in [str(x) for x in (wl.get("admins") or [])]
+    except Exception:
+        return False
+
+
+def _panel_allowed_bots(user_id):
+    """这个 QQ 在哪些实例里有管理权限（MASTER_QQ / ADMIN_QQ；老实例回退词库 admins）。
+
+    规则（用户 2026-11-08 定）：主人/管理员一律按列表判定，不做"主人看全部"的特殊放行；
+    没有权限的实例不会出现在面板切换列表里。返回实例 QQ 列表（去重保序）。
+    """
+    u = str(user_id)
+    home = os.environ.get("ASTERCORE_HOME") or os.path.dirname(os.path.abspath(__file__))
+    if os.path.isfile(os.path.join(home, "config.json")):
+        home = os.path.dirname(home)      # 传进来的是实例目录（里有 config.json）→ 用它的上级
+    out = []
+    try:
+        names = sorted(os.listdir(home))
+    except Exception:
+        names = []
+    for name in names:
+        inst = os.path.join(home, name)
+        if not os.path.isdir(inst):
+            continue
+        try:
+            with open(os.path.join(inst, "config.json"), encoding="utf-8") as f:
+                cfg = json.load(f) or {}
+        except Exception:
+            continue
+        qq = str(cfg.get("BOT_QQ") or name)
+        masters = cfg.get("MASTER_QQ") or []
+        admins = cfg.get("ADMIN_QQ") or []
+        if not isinstance(masters, list):
+            masters = [masters]
+        if not isinstance(admins, list):
+            admins = [admins]
+        if u in [str(x) for x in masters] or u in [str(x) for x in admins]:
+            out.append(qq)
+            continue
+        if not admins:          # 老实例：管理员只在词库 admins 里配过
+            try:
+                with open(os.path.join(inst, "data", "wordlib_config.json"), encoding="utf-8") as f:
+                    wl = json.load(f) or {}
+                if u in [str(x) for x in (wl.get("admins") or [])]:
+                    out.append(qq)
+            except Exception:
+                pass
+    seen, res = set(), []
+    for q in out:
+        if q not in seen:
+            seen.add(q)
+            res.append(q)
+    return res
+
 # 加载所有插件
 plugin_handlers = []
 plugin_meta_by_handler = {}  # {handler: name_cn}，用于日志标注处理插件
@@ -83,6 +153,39 @@ for finder, name, ispkg in pkgutil.iter_modules(plugins.__path__):
             print(f"  ✓ {cn} v{ver} — {desc}")
         else:
             print(f"  ✓ {cn} v{ver}")
+
+# ====== 内置 NoneBot 运行时（阶段 2；config.json 的 NESTBOT_ENABLED 打开才生效）======
+# 不额外起进程、不让 NapCat 多连一条 WS：NoneBot 用 none 驱动跑在本进程自己的
+# asyncio 事件循环里，发送仍走 utils.api（见 nestbot/transport.py）。
+_nestbot = None
+
+
+def _init_nestbot():
+    """按配置装配内置 NoneBot；没装依赖 / 没开开关时保持 None，行为与改动前一致。"""
+    global _nestbot
+    try:
+        from nestbot.runtime import build_from_config
+    except Exception as e:
+        print(f"[NoneBot] nestbot 包不可用（{type(e).__name__}: {e}），跳过内置运行时")
+        return
+    try:
+        _nestbot = build_from_config(
+            _get_cfg, instance_root=os.path.dirname(os.path.abspath(__file__)))
+    except Exception as e:
+        import traceback
+        print(f"[NoneBot] 装配失败: {type(e).__name__}: {e}")
+        traceback.print_exc()
+        _nestbot = None
+        return
+    if _nestbot is None:
+        print("[NoneBot] 未启用（实例 config.json 里加 \"NESTBOT_ENABLED\": true 可开启）")
+        return
+    if _nestbot.start(timeout=60):
+        print(f"[NoneBot] 内置运行时就绪，已载入插件: {_nestbot.loaded_plugins or '（无）'}")
+    else:
+        _nestbot = None
+        print("[NoneBot] 启动失败，已跳过（老功能不受影响）")
+
 
 # ====== 配置热重载：Web 端保存后通过 SIGUSR1 通知各插件重新加载配置 ======
 import signal as _signal
@@ -132,6 +235,42 @@ def on_message(ws, message):
         if event.get("post_type") == "message":
             log_msg_event(event, "接收")
 
+        # ===== 面板登录（私聊指令）：主人/管理员 → 一次性免密链接（默认 45 秒、仅私聊发放） =====
+        if event.get("post_type") == "message":
+            _pl_cmd = str(_get_cfg("PANEL_LOGIN_COMMAND", "面板登录") or "面板登录").strip()
+            _pl_raw = (event.get("raw_message") or "").strip()
+            if _pl_raw == _pl_cmd:
+                _pl_sender = event.get("user_id")
+                _pl_priv = event.get("message_type") == "private"
+                _pl_master = _is_master(_pl_sender)
+                _pl_admin = (not _pl_master) and _is_admin(_pl_sender)
+                if not _pl_priv:
+                    if _pl_master or _pl_admin:
+                        send_message(event, f"「{_pl_cmd}」只在私聊里发：加我好友后私聊发送即可。")
+                    return
+                if not (_pl_master or _pl_admin):
+                    send_message(event, f"「{_pl_cmd}」仅主人/管理员可用。")
+                    return
+                try:
+                    import utils.panel_token as _pt
+                    _pl_qq = str(_get_cfg("BOT_QQ", "") or "")
+                    _ttl = int(_get_cfg("PANEL_TOKEN_TTL", 45) or 45)
+                    _role = "master" if _pl_master else "admin"
+                    _allowed = _panel_allowed_bots(_pl_sender)
+                    if not _allowed:
+                        send_message(event, "你还没有任何实例的管理权限（MASTER_QQ / ADMIN_QQ 都没有你）。")
+                        return
+                    _tok, _exp = _pt.issue(_pl_qq, _role, _allowed, _ttl)
+                    _base = str(_get_cfg("PANEL_PUBLIC_URL", "https://bot.xn--kivt1l.online") or "").rstrip("/")
+                    _link = f"{_base}/panel/#t={_tok}"
+                    send_message(event, f"🔗 面板登录（{_ttl} 秒内有效，仅一次）：\n{_link}\n"
+                                        f"打开即登录；过期就重新发「{_pl_cmd}」。")
+                    print(f"[面板登录] 已为 {_pl_sender}（{'主人' if _pl_master else '管理员'}）签发令牌，{_ttl}s 有效")
+                except Exception as e:
+                    send_message(event, f"面板登录链接生成失败：{type(e).__name__}")
+                    print(f"[面板登录] 签发失败: {type(e).__name__} {e}")
+                return
+
         # 主人私聊「命令表」命令
         if (event.get("post_type") == "message"
                 and event.get("message_type") == "private"
@@ -159,6 +298,11 @@ def on_message(ws, message):
             except Exception as _e:
                 print(f"[状态] 处理失败: {_e}")
 
+        # ===== 消息处理管线（阶段 1/2）=====
+        # WS payload → 协议适配器转 NestEvent → 词库等老插件链 → 内置 NoneBot 注入
+        # 老插件先跑（字母序、首个返回 True 独占），未处理时才交给 NoneBot，
+        # 现在还没有冲突策略，所以这是最保守的先后关系（阶段 3 再细化）。
+        handled = False
         for handler in plugin_handlers:
             pname = plugin_meta_by_handler.get(handler, '')
             from utils.log import set_current_plugin
@@ -171,6 +315,13 @@ def on_message(ws, message):
                 if pname and event.get("post_type") == "message":
                     log('info', f'处理 <- 插件「{pname}」')
                 break
+
+        # NoneBot 内置运行时（NESTBOT_ENABLED 打开时才有值）
+        if not handled and _nestbot is not None:
+            try:
+                _nestbot.submit(event)
+            except Exception as e:
+                print(f"[NoneBot] 事件注入失败: {type(e).__name__}: {e}")
     except Exception as e:
         import traceback
         print(f"处理事件出错: {e}")
@@ -188,6 +339,8 @@ def on_open(ws):
     utils.ws.ws = ws  # 设置全局 WebSocket 对象
 
 if __name__ == "__main__":
+    _init_nestbot()
+
     ws = websocket.WebSocketApp(WS_URL,
                                 on_open=on_open,
                                 on_message=on_message,
@@ -201,3 +354,5 @@ if __name__ == "__main__":
             time.sleep(1)
     except KeyboardInterrupt:
         ws.close()
+        if _nestbot is not None:
+            _nestbot.stop()
