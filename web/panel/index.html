@@ -6,14 +6,14 @@
 <title>机器人管理面板</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22%231E40AF%22 d=%22M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z%22/></svg>">
 <!-- 两端共用的面板样式与外壳（与 Windows 端同一份字节，见 tests/test_dual_end_assets.py） -->
-<link rel="stylesheet" href="panel.css?v=1db2d3bd">
+<link rel="stylesheet" href="panel.css?v=3a37dc9b">
 
 <link rel="stylesheet" href="fonts/harmonyos.css?v=1">
-<link rel="stylesheet" href="cfg_form.css?v=fba272ae">
+<link rel="stylesheet" href="cfg_form.css?v=bf619f27">
 </head>
 <body>
-<script src="cfg_form.js?v=1523f7c0"></script>
-<script src="panel.js?v=27a9f159"></script>
+<script src="cfg_form.js?v=d48a9cf1"></script>
+<script src="panel.js?v=039d72ea"></script>
 <script>
 /* ==========================================================================
    Linux 机器人面板：这里**只声明"接口在哪"和"显示哪些页"**。
@@ -37,9 +37,37 @@ function post(url, body) {
     body: body === undefined ? undefined : JSON.stringify(body)
   }).then(function (r) { return r.json(); });
 }
-fetch('/api/check-auth').then(function (r) { return r.json(); })
-  .then(function (d) { if (!d.authenticated) location.href = '/'; })
-  .catch(function () { location.href = '/'; });
+function _bootAfterAuth() {
+  fetch('/api/check-auth').then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (!d.authenticated) { location.href = '/'; return; }
+      /* 实例白名单：没有权限的实例直接不显示；当前 URL 选的实例不在白名单里就跳到第一个有权限的 */
+      var allowed = d.allowed;
+      if (allowed !== '*' && Array.isArray(allowed) && allowed.length
+          && allowed.map(String).indexOf(String(botNum)) < 0) {
+        location.replace('/panel/?bot=' + encodeURIComponent(allowed[0]));
+      }
+    })
+    .catch(function () { location.href = '/'; });
+}
+/* QQ 私聊「面板登录」的链接：令牌放在 # 后面（不会进服务器日志/Referer），
+   页面读到后立即 POST 换会话，成功后直接跳进面板（纯链接、无需输密码）。 */
+(function () {
+  var m = /(?:^|[#&])t=([A-Za-z0-9_\-]+)/.exec(location.hash || '');
+  if (!m) { _bootAfterAuth(); return; }
+  history.replaceState(null, '', location.pathname + location.search);
+  fetch('/api/panel-token-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    body: JSON.stringify({ token: m[1] })
+  }).then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d && d.ok && d.redirect) { location.replace(d.redirect); return; }
+      alert('面板登录失败：' + ((d && d.message) || '链接无效或已过期'));
+      location.href = '/';
+    })
+    .catch(function () { location.href = '/'; });
+})();
 
 PANEL.endpoints = {
   page: function (p) {

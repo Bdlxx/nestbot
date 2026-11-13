@@ -21,9 +21,13 @@ if STATIC_DIR not in sys.path:
     sys.path.insert(0, STATIC_DIR)
 import config_schema as _cs      # 插件配置 schema（与 Windows 端 AsterCore 同一份实现）
 import ui_pages as _ui           # 面板页面片段（页面内容由后端生成，前端只挂载）
+import utils.panel_token as _panel_token   # QQ 私聊「面板登录」签发的一次性免密令牌
 
 # ====== 鉴权配置 ======
 CONFIG_PATH = '/etc/mybot-panel/config.json'
+
+# 免密链接登录的会话时长（用户 2026-11-08 定：4~5 小时，取 5）
+TOKEN_LOGIN_TTL = 5 * 3600
 
 def load_auth_config():
     try:
@@ -96,17 +100,44 @@ def _check_csrf():
     return True
 
 # ====== 鉴权装饰器 ======
+def _session_expired():
+    exp = session.get('exp')
+    if not exp:
+        return False
+    try:
+        return time.time() > float(exp)
+    except Exception:
+        return True
+
+
+def _session_allows_bot(n):
+    """实例白名单：QQ 指令登录时按 MASTER_QQ/ADMIN_QQ 算好的列表；密码登录是 '*'（全权）。"""
+    allowed = session.get('allowed')
+    if allowed == '*':
+        return True
+    if allowed is None:          # 兼容升级前建立的旧会话
+        return True
+    return str(n) in [str(x) for x in allowed]
+
+
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get('authenticated'):
             return jsonify({'error': '未登录', 'need_login': True}), 401
+        if _session_expired():
+            session.clear()
+            return jsonify({'error': '登录已过期，请重新登录', 'need_login': True}), 401
         # 会话自动续期
         session.permanent = True
         session.modified = True
 
         if not _check_csrf():
             return jsonify({'error': '请求来源无效，拒绝操作'}), 403
+        _va = request.view_args or {}
+        _n = _va.get('n', _va.get('num'))
+        if _n is not None and not _session_allows_bot(_n):
+            return jsonify({'error': '无权访问该实例', 'need_login': False}), 403
         return f(*args, **kwargs)
     return decorated
 
@@ -417,6 +448,7 @@ def api_bots():
             'running': running,
             'current': (CURRENT_BOT == n),
         })
+    items = [i for i in items if _session_allows_bot(i['num'])]
     return jsonify({'bots': items})
 
 def read_json(path):
@@ -628,6 +660,9 @@ def portal_login():
         session.permanent = True
         session['authenticated'] = True
         session['bot_name'] = bot_name
+        session['role'] = 'master'          # 密码登录 = 全权（没有 QQ 身份可判，保持原行为）
+        session['allowed'] = '*'
+        session['exp'] = time.time() + 86400
         # 找到密码对应的实例编号（按名称匹配 BOTS；匹配不到则用当前实例）
         num = None
         for n, b in BOTS.items():
@@ -644,10 +679,50 @@ def portal_login():
         time.sleep(1)  # 防时序攻击
         return jsonify({'success': False, 'message': '密码错误'}), 200
 
+@app.route('/api/panel-token-login', methods=['POST'])
+def panel_token_login():
+    """QQ 私聊「面板登录」签发的一次性令牌 → 直接建会话。
+    45 秒有效、只能用一次；实例白名单来自令牌（按 MASTER_QQ/ADMIN_QQ 算好）。"""
+    if (request.headers.get('X-Requested-With') or '') != 'XMLHttpRequest':
+        return jsonify({'ok': False, 'message': '请求来源无效'}), 403
+    client_ip = request.remote_addr or '127.0.0.1'
+    allowed, wait = _check_login_rate_limit(client_ip)
+    if not allowed:
+        return jsonify({'ok': False, 'message': f'尝试过于频繁，请 {wait} 秒后重试'}), 429
+    data = request.get_json(silent=True) or {}
+    rec = _panel_token.consume(str(data.get('token') or '').strip())
+    if not rec:
+        _record_login_attempt(client_ip, success=False)
+        return jsonify({'ok': False, 'message': '链接无效或已过期（45 秒有效，只能用一次）'}), 403
+    qq = str(rec.get('bot_qq') or '')
+    num = None
+    for n, b in BOTS.items():
+        if str(b.get('qq')) == qq:
+            num = n
+            break
+    if num is None:
+        _record_login_attempt(client_ip, success=False)
+        return jsonify({'ok': False, 'message': '该令牌对应的实例不存在'}), 404
+    _record_login_attempt(client_ip, success=True)
+    session.clear()
+    session.permanent = True
+    session['authenticated'] = True
+    session['bot_name'] = BOTS[num].get('name')
+    session['role'] = rec.get('role') or 'admin'
+    session['allowed'] = rec.get('allowed') or [qq]
+    session['exp'] = time.time() + TOKEN_LOGIN_TTL
+    print(f"[面板登录] 令牌登录成功：{session['role']} → {session.get('bot_name')}({qq})")
+    return jsonify({'ok': True, 'message': '登录成功', 'redirect': f"/panel/?bot={qq}", })
+
 @app.route('/api/check-auth')
 def check_auth():
     if session.get('authenticated'):
-        return jsonify({'authenticated': True, 'bot': session.get('bot_name')})
+        if _session_expired():
+            session.clear()
+            return jsonify({'authenticated': False}), 200
+        return jsonify({'authenticated': True, 'bot': session.get('bot_name'),
+                        'role': session.get('role') or 'master',
+                        'allowed': session.get('allowed')})
     return jsonify({'authenticated': False}), 200
 
 @app.route('/api/logout', methods=['POST'])
@@ -1063,6 +1138,28 @@ def _normalize_model_rows(merged):
     if not isinstance(models, list):
         return merged
     used_ids = {str(m.get('id')) for m in models if isinstance(m, dict) and m.get('id')}
+    # 运营商预设（providers）：补主键 p1/p2…、名称去重（模型行的 preset 引用 id）
+    provs = merged.get('providers')
+    if isinstance(provs, list):
+        used_p = {str(p.get('id')) for p in provs if isinstance(p, dict) and p.get('id')}
+        seen_pnames = set()
+        for p in provs:
+            if not isinstance(p, dict):
+                continue
+            if not p.get('id'):
+                i = 1
+                while f"p{i}" in used_p:
+                    i += 1
+                p['id'] = f"p{i}"
+                used_p.add(p['id'])
+            pbase = str(p.get('name') or '运营商').strip() or '运营商'
+            pname, pn = pbase, 2
+            while pname in seen_pnames:
+                pname = f"{pbase}-{pn}"
+                pn += 1
+            seen_pnames.add(pname)
+            p['name'] = pname
+
     seen_names = set()
     for m in models:
         if not isinstance(m, dict):
@@ -1235,6 +1332,18 @@ def model_test(num):
     model = str(d.get('model') or '').strip()
     url = str(d.get('url') or '').strip()
     key = str(d.get('key') or '').strip()
+    # 选了「运营商预设」而没填地址/密钥：从配置里的 providers 继承（与插件同一优先级）
+    pid = str(d.get('preset') or '').strip()
+    if pid and not (url and key):
+        try:
+            _pcfg = read_json(os.path.join(BOTS[num]['dir'], 'data', 'persona_config.json')) or {}
+            for _p in (_pcfg.get('providers') or []):
+                if isinstance(_p, dict) and str(_p.get('id') or '') == pid:
+                    url = url or str(_p.get('url') or '').strip()
+                    key = key or str(_p.get('key') or '').strip()
+                    break
+        except Exception:
+            pass
     if not model:
         return jsonify({'ok': False, 'data': {'error': '没填「调用名称」'}})
     if not url:
