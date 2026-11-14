@@ -6,7 +6,7 @@
 <title>机器人管理面板</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22%231E40AF%22 d=%22M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z%22/></svg>">
 <!-- 两端共用的面板样式与外壳（与 Windows 端同一份字节，见 tests/test_dual_end_assets.py） -->
-<link rel="stylesheet" href="panel.css?v=669d5ac6">
+<link rel="stylesheet" href="panel.css?v=60733601">
 
 <link rel="stylesheet" href="fonts/harmonyos.css?v=1">
 <link rel="stylesheet" href="cfg_form.css?v=bf619f27">
@@ -195,13 +195,19 @@ PANEL.hooks = {
   pickAccount: function (key) { location.href = '/panel/?bot=' + encodeURIComponent(key); },
   subMenus: {
     config: function (sub) { renderPluginList(sub); },
+    /* 日志二级项与插件二级项同构：has-icon + sprite 图标 + title，
+       这样收起成竖条时也是居中的图标（而不是被省略号截断的文字） */
     logs: function (sub) {
-      function item(id, label) {
+      function item(id, label, icon) {
         const active = PANEL.page === id;
-        return '<div class="nav-sub-item ' + (active ? 'active' : '') + '" role="button" tabindex="0"'
-          + (active ? ' aria-current="page"' : '') + ' onclick="PANEL.openPage(\'' + id + '\')">' + label + '</div>';
+        return '<div class="nav-sub-item has-icon ' + (active ? 'active' : '') + '" role="button" tabindex="0"'
+          + (active ? ' aria-current="page"' : '') + ' title="' + PANEL.esc(label) + '"'
+          + ' aria-label="' + PANEL.esc(label) + '"'
+          + ' onclick="PANEL.openPage(\'' + id + '\')">'
+          + '<span class="icon" aria-hidden="true"><svg class="ico"><use href="#i-' + icon + '"></use></svg></span>'
+          + '<span class="nav-sub-label">' + PANEL.esc(label) + '</span></div>';
       }
-      sub.innerHTML = item('logs', '📄 项目日志') + item('napcat_logs', '🐱 NapCat 日志');
+      sub.innerHTML = item('logs', '项目日志', 'filetext') + item('napcat_logs', 'NapCat 日志', 'paw');
     }
   },
   mounted: {
@@ -275,8 +281,10 @@ function renderPluginList(sub) {
     const p = configPlugins[k], active = PANEL.key === k && PANEL.page === 'config';
     /* 每个插件用自己的线性图标（symbol id 由后端 /plugins 的 icon 字段给出，
        见 ui_pages.PLUGIN_ICONS；未知插件回落通用拼图） */
+    const label = PANEL.esc(p.name_cn || k);
     return '<div class="nav-sub-item has-icon ' + (active ? 'active' : '') + '" role="button" tabindex="0"'
-      + (active ? ' aria-current="page"' : '') + ' onclick="PANEL.openPage(\'config\',\'' + k + '\')">'
+      + (active ? ' aria-current="page"' : '') + ' title="' + label + '" aria-label="' + label + '"'
+      + ' onclick="PANEL.openPage(\'config\',\'' + k + '\')">'
       + '<span class="icon" aria-hidden="true"><svg class="ico"><use href="#i-' + PANEL.pluginIcon(p.icon, k) + '"></use></svg></span>'
       + '<span class="nav-sub-label">' + PANEL.esc(p.name_cn || k) + '</span>'
       + (PANEL.dirty[k] ? '<span class="unsaved-dot" title="有未保存的修改"></span>' : '') + '</div>';

@@ -520,8 +520,13 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 .sidebar.rail .nav-sub{padding:2px 0 8px}
 .sidebar.rail .nav-sub-item{justify-content:center;margin:1px 6px}
 .sidebar.rail .nav-sub-item.has-icon{gap:0;padding-left:0;padding-right:0}
-/* 竖条态只看图标：和一级导航的视觉重量对齐，抬到 16px */
-.sidebar.rail .nav-sub-item.has-icon .icon .ico{width:16px;height:16px}
+/* 竖条态只看图标：尺寸与一级一致（14px），靠**颜色**区分层级 ——
+   一级深（继承 --text-primary），二级用次要色；悬停/选中回到主色。
+   （之前二级被放到 16px，反而比一级的 14px 更大，层级是反的） */
+.sidebar.rail .nav-sub-item.has-icon .icon .ico{width:var(--icon-sm);height:var(--icon-sm)}
+.sidebar.rail .nav-sub-item.has-icon .icon{color:var(--text-secondary)}
+.sidebar.rail .nav-sub-item.has-icon:hover .icon,
+.sidebar.rail .nav-sub-item.has-icon.active .icon{color:var(--color-primary)}
 .sidebar.rail .nav-sub-item.has-icon .nav-sub-label,.sidebar.rail .nav-sub-item.has-icon .el-tag{display:none}
 /* 收起态不覆盖账号卡的内边距/对齐：两态完全同位，展开时头像不位移（用户要求） */
 .sidebar.rail .nav-item{justify-content:center;padding:9px 0;margin:2px var(--space-sm,8px);border-left:0}
