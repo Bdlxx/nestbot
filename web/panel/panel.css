@@ -509,7 +509,9 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 /* 插件行前面的 @ 图标（用户指定）。行高写死 33px：展开态是「图标 + 名字」，
    收起态只留图标，两态必须同高，否则收起/展开时下面的按钮会上下跳。 */
 .nav-sub-item.has-icon{display:flex;align-items:center;gap:8px;height:33px;padding-top:0;padding-bottom:0}
-.nav-sub-item.has-icon .icon{display:flex;align-items:center;justify-content:center;width:16px;flex-shrink:0;
+.nav-sub-item.has-icon .icon{display:flex;align-items:center;justify-content:center;width:16px;flex-shrink:0}
+/* 插件图标按 --icon-sm(14) 渲染：比 13px 文字略大一点，线性描边在 14px 仍然清楚 */
+.nav-sub-item.has-icon .icon .ico{width:var(--icon-sm);height:var(--icon-sm)}
   font-size:13px;font-weight:600;line-height:1;color:var(--text-secondary)}
 .nav-sub-item.has-icon:hover .icon,.nav-sub-item.has-icon.active .icon{color:var(--color-primary)}
 .nav-sub-item.has-icon .nav-sub-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -518,6 +520,8 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 .sidebar.rail .nav-sub{padding:2px 0 8px}
 .sidebar.rail .nav-sub-item{justify-content:center;margin:1px 6px}
 .sidebar.rail .nav-sub-item.has-icon{gap:0;padding-left:0;padding-right:0}
+/* 竖条态只看图标：和一级导航的视觉重量对齐，抬到 16px */
+.sidebar.rail .nav-sub-item.has-icon .icon .ico{width:16px;height:16px}
 .sidebar.rail .nav-sub-item.has-icon .nav-sub-label,.sidebar.rail .nav-sub-item.has-icon .el-tag{display:none}
 /* 收起态不覆盖账号卡的内边距/对齐：两态完全同位，展开时头像不位移（用户要求） */
 .sidebar.rail .nav-item{justify-content:center;padding:9px 0;margin:2px var(--space-sm,8px);border-left:0}

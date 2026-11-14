@@ -6,14 +6,14 @@
 <title>机器人管理面板</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22%231E40AF%22 d=%22M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z%22/></svg>">
 <!-- 两端共用的面板样式与外壳（与 Windows 端同一份字节，见 tests/test_dual_end_assets.py） -->
-<link rel="stylesheet" href="panel.css?v=3a37dc9b">
+<link rel="stylesheet" href="panel.css?v=f653cc47">
 
 <link rel="stylesheet" href="fonts/harmonyos.css?v=1">
 <link rel="stylesheet" href="cfg_form.css?v=bf619f27">
 </head>
 <body>
 <script src="cfg_form.js?v=d48a9cf1"></script>
-<script src="panel.js?v=039d72ea"></script>
+<script src="panel.js?v=f14fa6e8"></script>
 <script>
 /* ==========================================================================
    Linux 机器人面板：这里**只声明"接口在哪"和"显示哪些页"**。
@@ -260,10 +260,11 @@ function renderPluginList(sub) {
   if (!keys.length) { sub.innerHTML = '<div class="nav-sub-loading">加载中...</div>'; return loadPlugins(); }
   sub.innerHTML = keys.map(function (k) {
     const p = configPlugins[k], active = PANEL.key === k && PANEL.page === 'config';
-    /* 展开后的每个插件统一用「@」图标（has-icon 是外壳里现成的行样式） */
+    /* 每个插件用自己的线性图标（symbol id 由后端 /plugins 的 icon 字段给出，
+       见 ui_pages.PLUGIN_ICONS；未知插件回落通用拼图） */
     return '<div class="nav-sub-item has-icon ' + (active ? 'active' : '') + '" role="button" tabindex="0"'
       + (active ? ' aria-current="page"' : '') + ' onclick="PANEL.openPage(\'config\',\'' + k + '\')">'
-      + '<span class="icon at-ico" aria-hidden="true" style="font-size:13px;font-weight:700;line-height:1">@</span>'
+      + '<span class="icon" aria-hidden="true"><svg class="ico"><use href="#i-' + PANEL.pluginIcon(p.icon || k) + '"></use></svg></span>'
       + '<span class="nav-sub-label">' + PANEL.esc(p.name_cn || k) + '</span>'
       + (PANEL.dirty[k] ? '<span class="unsaved-dot" title="有未保存的修改"></span>' : '') + '</div>';
   }).join('');

@@ -78,6 +78,34 @@ def napcat_desc(nc, fallback_qq=''):
 
 # ---------------------------------------------------------------- 各页面
 
+# ---------------------------------------------------------------- 图标
+
+# 插件 → SVG symbol id（sprite 在 panel.js 里，Linux/桌面共用）。
+# 风格统一为线性描边（.ico 的 1.75），来源：Lucide(ISC) book-open / message-square-plus /
+# file-video / download / heart；B 站品牌图标 Lucide 已移除，借 MingCute(Apache-2.0) bilibili-line。
+# 注：Tabler 的 rings 是「吊环」不是婚戒，所以结婚插件用 heart。
+PLUGIN_ICONS = {
+    'wordlib': 'book-open',
+    'pseudo': 'msg-plus',
+    'video_parser': 'file-video',
+    'marry': 'heart',
+    'jm_downloader': 'download',
+    'haruka': 'bilibili',
+}
+
+
+def plugin_icon(key):
+    """插件 key → symbol id；未知插件回落通用拼图。"""
+    return PLUGIN_ICONS.get(str(key or ''), 'plugin')
+
+
+def icon_svg(symbol_id, size=None):
+    """内联一个 sprite 图标（页面片段里用）。"""
+    style = f' style="width:{size}px;height:{size}px"' if size else ''
+    return (f'<svg class="ico"{style} aria-hidden="true" focusable="false">'
+            f'<use href="#i-{esc(symbol_id)}"></use></svg>')
+
+
 def _dashboard(ctx):
     info = ctx.get('info') or {}
     nc = ctx.get('napcat') or {}
@@ -88,7 +116,7 @@ def _dashboard(ctx):
     if plugins:
         chips = ''.join(
             f'<div class="chip-btn" role="button" tabindex="0" data-open="config" data-key="{esc(p["key"])}">'
-            f'<span style="font-size:16px">🧩</span>'
+            f'<span style="display:flex">{icon_svg(plugin_icon(p["key"]), 16)}</span>'
             f'<span style="font-size:13px;font-weight:500">{esc(p.get("name_cn") or p["key"])}</span>'
             f'<span style="font-size:11px;color:var(--text-secondary)">{esc(p.get("name_en") or "")}</span>'
             + ('' if p.get('declared') else '<span class="el-tag warning" title="该插件未声明配置项，字段按当前值推断">推断</span>')

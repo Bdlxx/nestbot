@@ -1074,6 +1074,7 @@ def get_plugins(num):
         decl, _dby, decl_errs = _read_declared_schema(_plugin_source_path(pd, meta))
         plugins[pkey] = {
             'name_cn': meta.get('name_cn') or pkey,
+            'icon': _ui.plugin_icon(pkey),
             'display': meta.get('name_cn') or pkey,
             'name_en': meta.get('name_en') or '',
             'description': meta.get('description', ''),
