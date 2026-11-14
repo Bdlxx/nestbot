@@ -13,7 +13,7 @@
 </head>
 <body>
 <script src="cfg_form.js?v=d48a9cf1"></script>
-<script src="panel.js?v=f14fa6e8"></script>
+<script src="panel.js?v=0c9de343"></script>
 <script>
 /* ==========================================================================
    Linux 机器人面板：这里**只声明"接口在哪"和"显示哪些页"**。
@@ -103,6 +103,12 @@ const NAV_ICON_PLUGINS =
 
 /* 群聊开关页：改一下就自动保存（不需要点「保存」）；桌面端不设这个开关，行为保持原样 */
 PANEL.groupAutoSave = true;
+/* 插件图标：key → sprite symbol id（Linux 端自己的映射；共用外壳 panel.js 不含插件名）。
+   后端 /api/.../plugins 的 icon 字段优先，这里只在外壳拿不到时兜底。 */
+PANEL.pluginIcons = {
+  wordlib: 'book-open', pseudo: 'msg-plus', video_parser: 'file-video',
+  marry: 'heart', jm_downloader: 'download', haruka: 'bilibili'
+};
 
 PANEL.nav = [
   { id: 'dashboard', icon: '📊', label: '仪表盘', group: '概览' },
@@ -264,7 +270,7 @@ function renderPluginList(sub) {
        见 ui_pages.PLUGIN_ICONS；未知插件回落通用拼图） */
     return '<div class="nav-sub-item has-icon ' + (active ? 'active' : '') + '" role="button" tabindex="0"'
       + (active ? ' aria-current="page"' : '') + ' onclick="PANEL.openPage(\'config\',\'' + k + '\')">'
-      + '<span class="icon" aria-hidden="true"><svg class="ico"><use href="#i-' + PANEL.pluginIcon(p.icon) + '"></use></svg></span>'
+      + '<span class="icon" aria-hidden="true"><svg class="ico"><use href="#i-' + PANEL.pluginIcon(p.icon, k) + '"></use></svg></span>'
       + '<span class="nav-sub-label">' + PANEL.esc(p.name_cn || k) + '</span>'
       + (PANEL.dirty[k] ? '<span class="unsaved-dot" title="有未保存的修改"></span>' : '') + '</div>';
   }).join('');

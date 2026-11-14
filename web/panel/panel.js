@@ -52,10 +52,27 @@ const PLUGIN_ICON_SPRITE = '<svg xmlns="http://www.w3.org/2000/svg" style="displ
   + '<symbol id="i-heart" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></symbol>'
   + '<symbol id="i-bilibili" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M14.026 11.771c.209-.895 1.47-1.035 1.872-.211A1 1 0 0 1 16 12v2c-.022.383-.206.725-.56.898c-.693.339-1.398-.169-1.44-.898v-2Zm-6 0c.209-.895 1.47-1.035 1.872-.211A1 1 0 0 1 10 12v2c-.022.383-.206.725-.56.898c-.693.339-1.398-.169-1.44-.898v-2ZM7.131 6l-.963-1.445a1 1 0 0 1-.159-.423c-.122-.909 1.004-1.492 1.674-.863l.149.176L9.535 6h4.93l1.703-2.555l.149-.176c.67-.629 1.796-.046 1.674.863a1 1 0 0 1-.159.423L16.869 6c.676 0 1.381-.051 2.048.106C20.764 6.538 21.946 8.139 22 10v7c-.031 1.066-.41 2.067-1.172 2.828c-.761.762-1.762 1.141-2.828 1.172H6c-2.266-.065-3.935-1.734-4-4v-7c.054-1.861 1.236-3.462 3.083-3.894C5.75 5.949 6.455 6 7.131 6M4.026 17.324C4.186 18.308 5.031 18.961 6 19h12c1.146-.046 1.954-.854 2-2v-7a2.1 2.1 0 0 0-.223-.919C19.426 8.403 18.748 8.03 18 8H6c-1.146.046-1.954.854-2 2v7Z"/></symbol>'
   + '</svg>';
-/* 后端 /plugins 已经给出 symbol id，这里只做白名单过滤，避免脏 id 进到 href */
-function pluginIcon(id) {
-  const s = String(id || '').trim();
-  return /^[a-z0-9-]{1,32}$/.test(s) ? s : 'plugin';
+/* 插件图标：外壳只提供通用机制，**具体映射由各端 index.html 注入**
+   （`PANEL.pluginIcons = {插件key: symbolId}`，见 tests/test_dual_end_assets.py 的
+   "共用外壳不许写死某一端插件名"）。后端 /plugins 已经给出 symbol id 时优先用它，
+   没给（api.py 没重启）就退回本端映射，最后回落通用拼图。 */
+function pluginIcon(id, key) {
+  if (id !== undefined && id !== null && id !== '') {
+    const s = String(id).trim();
+    if (/^[a-z0-9-]{1,32}$/.test(s)) return s;
+  }
+  const map = P.pluginIcons || {};
+  return (key && map[key]) || 'plugin';
+}
+/* 仪表盘插件卡是后端渲染的：老后端只给 🧩（水合后是通用拼图），
+   这里按 data-key + 本端映射覆盖一次；新后端本来就是对的值，重复设置结果相同 */
+function hydratePluginIcons(root) {
+  (root || document).querySelectorAll('.chip-btn[data-key]').forEach(function (el) {
+    const svg = el.querySelector('svg.ico'), use = svg && svg.querySelector('use');
+    if (!use) return;
+    use.setAttribute('href', '#i-' + pluginIcon(null, el.getAttribute('data-key')));
+    if (svg.style.width !== '16px') { svg.style.width = '16px'; svg.style.height = '16px'; }
+  });
 }
 function ensureShell() {
   if (document.getElementById("appReady")) return;
@@ -357,6 +374,7 @@ async function renderPage() {
     renderSidebar();
     applyActions(data);
     hydrateIcons($('pageContent'));
+    hydratePluginIcons($('pageContent'));
     const hook = (P.hooks.mounted || {})[page];
     if (hook) hook(data);
   } catch (e) { mountError('页面加载失败：' + (e.message || e)); }
@@ -1136,7 +1154,7 @@ P.navigate = navigate; P.openPage = openPage; P.goPage = goPage;
 P.renderPage = renderPage; P.refreshCurrentPage = refreshCurrentPage;
 P.renderSidebar = renderSidebar; P.toggleSubMenu = toggleSubMenu; P.renderSubMenu = renderSubMenu;
 P.subMenuLoading = subMenuLoading; P.restoreSubMenus = restoreSubMenus;
-P.toggleSidebar = toggleSidebar; P.toggleTheme = toggleTheme; P.pluginIcon = pluginIcon; P.syncThemeSwitch = syncThemeSwitch; P.hydrateIcons = hydrateIcons;
+P.toggleSidebar = toggleSidebar; P.toggleTheme = toggleTheme; P.pluginIcon = pluginIcon; P.hydratePluginIcons = hydratePluginIcons; P.syncThemeSwitch = syncThemeSwitch; P.hydrateIcons = hydrateIcons;
 P.toggleAccountPop = toggleAccountPop; P.setRail = setRail;
 P.toggleAppMenu = toggleAppMenu; P.renderAppMenu = renderAppMenu; P.menuGo = menuGo;
 P.syncAppMenuBtn = syncAppMenuBtn;
