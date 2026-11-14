@@ -264,7 +264,7 @@ function renderPluginList(sub) {
        见 ui_pages.PLUGIN_ICONS；未知插件回落通用拼图） */
     return '<div class="nav-sub-item has-icon ' + (active ? 'active' : '') + '" role="button" tabindex="0"'
       + (active ? ' aria-current="page"' : '') + ' onclick="PANEL.openPage(\'config\',\'' + k + '\')">'
-      + '<span class="icon" aria-hidden="true"><svg class="ico"><use href="#i-' + PANEL.pluginIcon(p.icon || k) + '"></use></svg></span>'
+      + '<span class="icon" aria-hidden="true"><svg class="ico"><use href="#i-' + PANEL.pluginIcon(p.icon) + '"></use></svg></span>'
       + '<span class="nav-sub-label">' + PANEL.esc(p.name_cn || k) + '</span>'
       + (PANEL.dirty[k] ? '<span class="unsaved-dot" title="有未保存的修改"></span>' : '') + '</div>';
   }).join('');
