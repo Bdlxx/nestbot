@@ -612,6 +612,18 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 .nav-sub-item.has-icon{height:auto;min-height:36px}
 .nav-sub-item.has-icon .icon{line-height:16px}
 .nav-sub-loading{padding:var(--space-xs) 10px;font-size:var(--fs-sm);color:var(--text-secondary)}
+/* 层级：组标题(12px/600/灰、字距) < 一级项(15px/600/正文色) < 二级项(13px/400/常规色)。
+   之前三者字重都是 400，只能靠 2px 字号差区分，一眼看不出主次（2026-11-14 用户反馈）。 */
+.nav-item{font-weight:600;color:var(--text-primary)}
+.nav-item.active{font-weight:600;color:var(--color-primary)}
+.nav-sub-item{font-weight:400;color:var(--text-regular)}
+.nav-sub-item.active{font-weight:600;color:var(--color-primary)}
+/* 二级块一条极淡竖线（对齐父项图标中线），把"从属关系"画出来 */
+.nav-sub{position:relative}
+.nav-sub::before{content:'';position:absolute;left:30px;top:2px;bottom:2px;width:1px;
+  background:var(--border-light);pointer-events:none}
+.sidebar.rail .nav-sub::before{display:none}
+
 /* 收起成竖条（56px）时只剩图标：横向居中，点击区仍 ≥40px */
 .sidebar.rail .nav-item{margin:1px;padding:9px 0}
 .sidebar.rail .nav-item .icon{margin:0 auto}

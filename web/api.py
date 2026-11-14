@@ -525,7 +525,33 @@ def _plugin_source_path(pd, meta):
     return p if p and os.path.exists(p) else ''
 
 
+_DECL_CACHE = {}
+
+
 def _read_declared_schema(src_path):
+    """按 (路径, mtime, 大小) 缓存 __config_schema__ 的解析结果。
+
+    面板每次 /plugins、/plugins/<k>/schema 都要读一遍声明；pseudo_persona.py 单文件
+    ast.parse 就要 100ms+，缓存后只剩一次 stat。文件改动（mtime/大小变）自动失效。
+    """
+    if not src_path:
+        return _read_declared_schema_raw(src_path)
+    try:
+        st = os.stat(src_path)
+    except OSError:
+        return _read_declared_schema_raw(src_path)
+    key = (src_path, st.st_mtime_ns, st.st_size)
+    hit = _DECL_CACHE.get(key)
+    if hit is not None:
+        return hit
+    res = _read_declared_schema_raw(src_path)
+    if len(_DECL_CACHE) > 64:      # 实例/插件不多，简单封顶即可
+        _DECL_CACHE.clear()
+    _DECL_CACHE[key] = res
+    return res
+
+
+def _read_declared_schema_raw(src_path):
     """读插件源码里的模块级 __config_schema__。
 
     **用 ast 解析，绝不 import**：老插件导入期有副作用（video_parser 会注册解析器、
@@ -1088,7 +1114,9 @@ def get_plugins(num):
         }
 
     # 2. 群组开关表格数据（helper 与页面片段共用）
-    plugins['_toggles'] = _toggles_payload(b, [k for k, _ in avail_list])
+    #    ?lite=1 供侧栏二级菜单用：只要插件名/图标，跳过要连 NapCat 取群列表的 _toggles
+    if not request.args.get('lite'):
+        plugins['_toggles'] = _toggles_payload(b, [k for k, _ in avail_list])
 
     safe_bot = {k: v for k, v in b.items() if k not in ('dir', 'screen', 'napcat_port')}
     return jsonify({'bot': safe_bot, 'plugins': plugins})

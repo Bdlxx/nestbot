@@ -6,7 +6,7 @@
 <title>机器人管理面板</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22%231E40AF%22 d=%22M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z%22/></svg>">
 <!-- 两端共用的面板样式与外壳（与 Windows 端同一份字节，见 tests/test_dual_end_assets.py） -->
-<link rel="stylesheet" href="panel.css?v=f653cc47">
+<link rel="stylesheet" href="panel.css?v=81fc6a19">
 
 <link rel="stylesheet" href="fonts/harmonyos.css?v=1">
 <link rel="stylesheet" href="cfg_form.css?v=bf619f27">
@@ -78,7 +78,7 @@ PANEL.endpoints = {
   },
   headerStatus: function () { return BASE + '/status'; },
   status: function () { return BASE + '/ui/status'; },
-  plugins: function () { return BASE + '/plugins'; },
+  plugins: function () { return BASE + '/plugins?lite=1'; },
   schema: function (k) { return BASE + '/plugins/' + encodeURIComponent(k) + '/schema'; },
   saveConfig: function (k, cfg, raw) { return post(BASE + '/config' + (raw ? '?raw=1' : ''), { plugin: k, cfg: cfg, raw: raw }); },
   logs: function (sfx, lines) { return BASE + (sfx === '2' ? '/napcat-log' : '/log') + '?lines=' + lines; },
@@ -135,7 +135,14 @@ PANEL.appMenu = [
 
 /* 群列表（给 cfg_form.js 的群号选择器用）：从群组页片段里取，拿不到就退化成手填 */
 let _groupsCache = null, _groupsErr = '';
+/* 插件列表预热：首屏空闲时先拉一次 /plugins（侧栏二级菜单要用）。
+   以前是点「插件配置」才开始请求，网络慢时要盯着"加载中..."等一阵。 */
 PANEL.hooks = {
+  beforeStart: function () {
+    var warm = function () { try { loadPlugins(); } catch (e) { } };
+    if (window.requestIdleCallback) requestIdleCallback(warm, { timeout: 1200 });
+    else setTimeout(warm, 150);
+  },
   identity: async function () {
     const d = await PANEL.api(BASE + '/info');
     if (!d.success) return;
@@ -275,17 +282,22 @@ function renderPluginList(sub) {
       + (PANEL.dirty[k] ? '<span class="unsaved-dot" title="有未保存的修改"></span>' : '') + '</div>';
   }).join('');
 }
+let _pluginsReq = null;
 function loadPlugins() {
-  return PANEL.api(PANEL.endpoints.plugins()).then(function (d) {
+  /* 去重：预热请求和"展开菜单"可能同时触发，共享同一个请求，别打两次 */
+  if (_pluginsReq) return _pluginsReq;
+  _pluginsReq = PANEL.api(PANEL.endpoints.plugins()).then(function (d) {
     configPlugins = {};
     Object.keys(d.plugins || {}).forEach(function (k) { if (k !== '_toggles') configPlugins[k] = d.plugins[k]; });
     const sub = PANEL.$('sub_config');
     if (sub) renderPluginList(sub);
     return configPlugins;
   }).catch(function () {
+    _pluginsReq = null;              /* 失败允许重试 */
     const sub = PANEL.$('sub_config');
     if (sub) sub.innerHTML = '<div class="nav-sub-item" style="color:var(--color-danger)">加载失败，展开菜单可重试</div>';
   });
+  return _pluginsReq;
 }
 
 /* ---------------- 设置页（主人 QQ / 管理员 QQ） ---------------- */
